@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Echo Cave</title>
     <style>
-        /* Remove all margin and padding to make the canvas fill the screen */
         body {
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Hide scrollbars */
-            background-color: #0a0a14; /* Match p5.js background */
+            overflow: hidden;
+            background-color: #0a0a14;
         }
-        /* Style for the p5.js created UI elements */
         input, button {
             background-color: #111;
             border: 1px solid #555;
@@ -31,131 +29,8 @@
     </style>
 </head>
 <body>
-    <!-- Scripts must be loaded in this order -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
-    
-    <!-- Your p5.js sketch, adapted for networking -->
-    <script>
-        let socket;
-        let echoes = [];
-        let inputField;
-        let submitButton;
-        let caveShapes = [];
-        const NUM_CAVE_SHAPES = 30;
-
-        function setup() {
-            createCanvas(windowWidth, windowHeight);
-            
-            // --- Connect to the server ---
-            socket = io();
-            
-            // --- Listen for 'newEcho' messages from the server ---
-            socket.on('newEcho', (data) => {
-                console.log('Received a new echo from the server:', data.text);
-                // When a message is received, create a new word object
-                echoes.push(new Word(data.text));
-            });
-
-            // --- UI Setup ---
-            inputField = createInput('');
-            inputField.position(width / 2 - 150, height - 50);
-            inputField.size(220);
-
-            submitButton = createButton('Echo');
-            submitButton.position(inputField.x + inputField.width + 10, height - 50);
-            submitButton.mousePressed(sendEcho); // Changed from createEcho
-
-            // --- Initial Canvas Settings ---
-            textAlign(CENTER, CENTER);
-            textSize(32);
-
-            // Generate initial cave shapes
-            generateCaveShapes();
-        }
-
-        function draw() {
-            background(10, 10, 20);
-            noStroke();
-            fill(30, 30, 45);
-            for (let shape of caveShapes) {
-                ellipse(shape.x, shape.y, shape.radius * 1.5, shape.radius);
-            }
-            fill(10, 10, 20, 150);
-            rect(0, 0, width, height);
-
-            for (let i = echoes.length - 1; i >= 0; i--) {
-                let echo = echoes[i];
-                echo.update();
-                echo.display();
-                if (echo.isFinished()) {
-                    echoes.splice(i, 1);
-                }
-            }
-        }
-
-        function keyPressed() {
-            if (keyCode === ENTER) {
-                sendEcho();
-            }
-        }
-
-        // This function ONLY sends the data to the server
-        function sendEcho() {
-            const text = inputField.value();
-            if (text !== "") {
-                // Send the text in an object to the server
-                socket.emit('newEcho', { text: text });
-                inputField.value(''); // Clear input after sending
-            }
-        }
-        
-        function generateCaveShapes() {
-            caveShapes = [];
-             for (let i = 0; i < NUM_CAVE_SHAPES; i++) {
-                caveShapes.push({
-                    x: random(width),
-                    y: random(height),
-                    radius: random(10, 80) * random(0.5, 1.5)
-                });
-            }
-        }
-
-        // --- The Word Class (no changes needed) ---
-        class Word {
-            constructor(text) {
-                this.text = text;
-                this.pos = createVector(random(width), random(height));
-                this.vel = createVector(random(-0.3, 0.3), random(-0.2, 0.2));
-                this.lifespan = 255;
-            }
-
-            update() {
-                this.pos.add(this.vel);
-                this.lifespan -= 0.7;
-            }
-
-            display() {
-                fill(100, 150, 255, this.lifespan);
-                drawingContext.shadowBlur = 15;
-                drawingContext.shadowColor = color(100, 150, 255, this.lifespan);
-                text(this.text, this.pos.x, this.pos.y);
-                drawingContext.shadowBlur = 0;
-                drawingContext.shadowColor = 'rgba(0,0,0,0)';
-            }
-
-            isFinished() {
-                return this.lifespan < 0;
-            }
-        }
-
-        function windowResized() {
-            resizeCanvas(windowWidth, windowHeight);
-            inputField.position(width / 2 - 150, height - 50);
-            submitButton.position(inputField.x + inputField.width + 10, height - 50);
-            generateCaveShapes();
-        }
-    </script>
+    <script src="sketch.js"></script>
 </body>
 </html>
-

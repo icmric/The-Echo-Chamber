@@ -1,56 +1,113 @@
-// sketch.js
-// This is the frontend p5.js code that runs in the browser.
-
 let socket;
-let strokeColor;
+let echoes = [];
+let inputField;
+let submitButton;
+let caveShapes = [];
+const NUM_CAVE_SHAPES = 30;
 
 function setup() {
-  const canvas = createCanvas(800, 600);
-  // Put the canvas inside the 'canvas-container' div
-  canvas.parent('canvas-container');
-  background(255);
+    createCanvas(windowWidth, windowHeight);
+    
+    // Connect to the server
+    socket = io();
+    
+    // Listen for 'newEcho' messages from the server
+    socket.on('newEcho', (data) => {
+        console.log('Received a new echo from the server:', data.text);
+        echoes.push(new Word(data.text));
+    });
 
-  // Generate a random color for this user's stroke
-  strokeColor = color(random(255), random(255), random(255));
-  
-  // Connect to the server.
-  // The server is serving this file, so we can just connect to the host.
-  socket = io.connect();
+    // UI Setup
+    inputField = createInput('');
+    inputField.position(width / 2 - 150, height - 50);
+    inputField.size(220);
 
-  // Set up a listener for 'drawing' messages from the server
-  socket.on('drawing', (data) => {
-    // When we receive data, draw a line on the canvas
-    stroke(data.color.r, data.color.g, data.color.b);
-    strokeWeight(4);
-    line(data.x, data.y, data.px, data.py);
-  });
+    submitButton = createButton('Echo');
+    submitButton.position(inputField.x + inputField.width + 10, height - 50);
+    submitButton.mousePressed(sendEcho);
+
+    // Initial Canvas Settings
+    textAlign(CENTER, CENTER);
+    textSize(32);
+
+    generateCaveShapes();
 }
 
-// This function is called repeatedly by p5.js, but we don't need it for this example.
 function draw() {
-  // Nothing needed here for this simple example.
+    background(10, 10, 20);
+    noStroke();
+    fill(30, 30, 45);
+    for (let shape of caveShapes) {
+        ellipse(shape.x, shape.y, shape.radius * 1.5, shape.radius);
+    }
+    fill(10, 10, 20, 150);
+    rect(0, 0, width, height);
+
+    for (let i = echoes.length - 1; i >= 0; i--) {
+        let echo = echoes[i];
+        echo.update();
+        echo.display();
+        if (echo.isFinished()) {
+            echoes.splice(i, 1);
+        }
+    }
 }
 
-// This function is called by p5.js whenever the mouse is dragged.
-function mouseDragged() {
-  // 1. Draw on the local canvas immediately for a responsive feel
-  stroke(strokeColor);
-  strokeWeight(4);
-  line(mouseX, mouseY, pmouseX, pmouseY);
-  
-  // 2. Prepare the data object to send to the server
-  const data = {
-    x: mouseX,
-    y: mouseY,
-    px: pmouseX,
-    py: pmouseY,
-    color: {
-        r: red(strokeColor),
-        g: green(strokeColor),
-        b: blue(strokeColor)
+function keyPressed() {
+    if (keyCode === ENTER) {
+        sendEcho();
     }
-  };
-  
-  // 3. Send the data to the server in a message called 'drawing'
-  socket.emit('drawing', data);
+}
+
+function sendEcho() {
+    const text = inputField.value();
+    if (text !== "") {
+        socket.emit('newEcho', { text: text });
+        inputField.value('');
+    }
+}
+
+function generateCaveShapes() {
+    caveShapes = [];
+    for (let i = 0; i < NUM_CAVE_SHAPES; i++) {
+        caveShapes.push({
+            x: random(width),
+            y: random(height),
+            radius: random(10, 80) * random(0.5, 1.5)
+        });
+    }
+}
+
+class Word {
+    constructor(text) {
+        this.text = text;
+        this.pos = createVector(random(width), random(height));
+        this.vel = createVector(random(-0.3, 0.3), random(-0.2, 0.2));
+        this.lifespan = 255;
+    }
+
+    update() {
+        this.pos.add(this.vel);
+        this.lifespan -= 0.7;
+    }
+
+    display() {
+        fill(100, 150, 255, this.lifespan);
+        drawingContext.shadowBlur = 15;
+        drawingContext.shadowColor = color(100, 150, 255, this.lifespan);
+        text(this.text, this.pos.x, this.pos.y);
+        drawingContext.shadowBlur = 0;
+        drawingContext.shadowColor = 'rgba(0,0,0,0)';
+    }
+
+    isFinished() {
+        return this.lifespan < 0;
+    }
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    inputField.position(width / 2 - 150, height - 50);
+    submitButton.position(inputField.x + inputField.width + 10, height - 50);
+    generateCaveShapes();
 }
