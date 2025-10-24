@@ -12,7 +12,7 @@ let bgImage;
 
 function preload() {
     // Load images
-    bgImage = loadImage('assets/background.jpg');
+    bgImage = loadImage('assets/background.png');
     micOnImg = loadImage('assets/mic-on.jpg');
     micOffImg = loadImage('assets/mic-off.jpg');
 }
