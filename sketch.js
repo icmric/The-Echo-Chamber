@@ -4,33 +4,60 @@ let inputField;
 let submitButton;
 let caveShapes = [];
 const NUM_CAVE_SHAPES = 30;
+let speechRec;
+let speechActive = false;
+
+// Microphone images (to be loaded)
+let micOnImg;
+let micOffImg;
+
+function preload() {
+    // Load microphone images
+    micOnImg = loadImage('assets/mic-on.jpg');
+    micOffImg = loadImage('assets/mic-off.jpg');
+}
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
+    
+    // Initialize speech recognition
+    speechRec = new p5.SpeechRec('en-US', gotSpeech);
+    speechRec.start(true, false);
+    speechActive = true;
     
     // Connect to the server
     socket = io();
     
     // Listen for 'newEcho' messages from the server
     socket.on('newEcho', (data) => {
-        console.log('Received a new echo from the server:', data.text);
         echoes.push(new Word(data.text));
     });
 
     // UI Setup
     inputField = createInput('');
     inputField.position(width / 2 - 150, height - 50);
-    inputField.size(220);
-
-    submitButton = createButton('Echo');
+    inputField.size(220);    submitButton = createButton('Echo');
     submitButton.position(inputField.x + inputField.width + 10, height - 50);
     submitButton.mousePressed(sendEcho);
+
+    // Microphone toggle will be handled by canvas-drawn images
+    // No DOM button needed
 
     // Initial Canvas Settings
     textAlign(CENTER, CENTER);
     textSize(32);
 
     generateCaveShapes();
+}
+
+// Speech recognized event  
+function gotSpeech() {
+    if (speechRec.resultValue) {
+        let said = speechRec.resultString;
+        if (said && said.trim() !== "") {
+            socket.emit('newEcho', { text: said });
+        }
+    }
 }
 
 function draw() {
@@ -50,6 +77,35 @@ function draw() {
         if (echo.isFinished()) {
             echoes.splice(i, 1);
         }
+    }
+
+    // Draw microphone button image in bottom right
+    if (micOnImg && micOffImg) {
+        if (speechActive) {
+            image(micOnImg, width - 70, height - 70, 60, 60);
+        } else {
+            image(micOffImg, width - 70, height - 70, 60, 60);
+        }
+    }
+}
+
+function toggleMicrophone() {
+    if (speechActive) {
+        // Stop speech recognition
+        speechRec.rec.stop();
+        speechActive = false;
+    } else {
+        // Start speech recognition
+        speechRec.start(true, false);
+        speechActive = true;
+    }
+}
+
+function mousePressed() {
+    // Handle image button clicks when using canvas-drawn images
+    if (mouseX >= width - 70 && mouseX <= width - 10 && 
+        mouseY >= height - 70 && mouseY <= height - 10) {
+        toggleMicrophone();
     }
 }
 
@@ -107,7 +163,8 @@ class Word {
 
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
-    inputField.position(width / 2 - 150, height - 50);
-    submitButton.position(inputField.x + inputField.width + 10, height - 50);
-    generateCaveShapes();
+    if (inputField && submitButton) {
+        inputField.position(width / 2 - 150, height - 50);
+        submitButton.position(inputField.x + inputField.width + 10, height - 50);
+    }    generateCaveShapes();
 }
