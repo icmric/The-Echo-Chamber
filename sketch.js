@@ -2,17 +2,17 @@ let socket;
 let echoes = [];
 let inputField;
 let submitButton;
-let caveShapes = [];
-const NUM_CAVE_SHAPES = 30;
 let speechRec;
 let speechActive = false;
 
-// Microphone images (to be loaded)
+// Images
 let micOnImg;
 let micOffImg;
+let bgImage;
 
 function preload() {
-    // Load microphone images
+    // Load images
+    bgImage = loadImage('assets/background.jpg');
     micOnImg = loadImage('assets/mic-on.jpg');
     micOffImg = loadImage('assets/mic-off.jpg');
 }
@@ -38,16 +38,11 @@ function setup() {
     inputField.position(width / 2 - 150, height - 50);
     inputField.size(220);    submitButton = createButton('Echo');
     submitButton.position(inputField.x + inputField.width + 10, height - 50);
-    submitButton.mousePressed(sendEcho);
-
-    // Microphone toggle will be handled by canvas-drawn images
-    // No DOM button needed
+    submitButton.mousePressed(sendEcho); 
 
     // Initial Canvas Settings
     textAlign(CENTER, CENTER);
     textSize(32);
-
-    generateCaveShapes();
 }
 
 // Speech recognized event  
@@ -61,14 +56,8 @@ function gotSpeech() {
 }
 
 function draw() {
-    background(10, 10, 20);
-    noStroke();
-    fill(30, 30, 45);
-    for (let shape of caveShapes) {
-        ellipse(shape.x, shape.y, shape.radius * 1.5, shape.radius);
-    }
-    fill(10, 10, 20, 150);
-    rect(0, 0, width, height);
+    // Draw background - aligned to top-left, scaled to fit height
+    drawBackground();
 
     for (let i = echoes.length - 1; i >= 0; i--) {
         let echo = echoes[i];
@@ -87,6 +76,17 @@ function draw() {
             image(micOffImg, width - 70, height - 70, 60, 60);
         }
     }
+}
+
+function drawBackground() {
+    if (!bgImage) return;
+    
+    // Scale to fit canvas height, align to top-left
+    let scale = height / bgImage.height;
+    let drawWidth = bgImage.width * scale;
+    let drawHeight = height;
+    
+    image(bgImage, 0, 0, drawWidth, drawHeight);
 }
 
 function toggleMicrophone() {
@@ -119,19 +119,7 @@ function sendEcho() {
     const text = inputField.value();
     if (text !== "") {
         socket.emit('newEcho', { text: text });
-        inputField.value('');
-    }
-}
-
-function generateCaveShapes() {
-    caveShapes = [];
-    for (let i = 0; i < NUM_CAVE_SHAPES; i++) {
-        caveShapes.push({
-            x: random(width),
-            y: random(height),
-            radius: random(10, 80) * random(0.5, 1.5)
-        });
-    }
+        inputField.value('');    }
 }
 
 class Word {
@@ -166,5 +154,5 @@ function windowResized() {
     if (inputField && submitButton) {
         inputField.position(width / 2 - 150, height - 50);
         submitButton.position(inputField.x + inputField.width + 10, height - 50);
-    }    generateCaveShapes();
+    }
 }
