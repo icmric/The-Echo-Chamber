@@ -4,6 +4,7 @@ let inputField;
 let submitButton;
 let speechRec;
 let speechActive = false;
+let speak;
 
 // Images
 let micOnImg;
@@ -17,13 +18,15 @@ function preload() {
     micOffImg = loadImage('assets/mic-off.jpg');
 }
 
-function setup() {
+async function setup() {
     createCanvas(windowWidth, windowHeight);
     
     // Initialize speech recognition
     speechRec = new p5.SpeechRec('en-US', gotSpeech);
     speechRec.start(true, false);
     speechActive = true;
+    speak = new p5.Speech()
+
     
     // Connect to the server
     socket = io();
@@ -31,6 +34,8 @@ function setup() {
     // Listen for 'newEcho' messages from the server
     socket.on('newEcho', (data) => {
         echoes.push(new Word(data.text));
+        speak.setVoice("Microsoft Catherine - English (Australia)");
+        applyEchoAndSpeak(data.text);
     });
 
     // UI Setup
@@ -53,6 +58,38 @@ function gotSpeech() {
             socket.emit('newEcho', { text: said });
         }
     }
+}
+
+function applyEchoAndSpeak(text) {
+    // Original speech at normal rate and pitch
+    speak.setRate(1.0);
+    speak.setPitch(1.0);
+    speak.setVolume(1.0);
+    speak.speak(text);
+    
+    // Echo 1: slightly delayed, slightly higher pitch, quieter
+    setTimeout(() => {
+        speak.setRate(1.1);
+        speak.setPitch(1.1);
+        speak.setVolume(0.75);
+        speak.speak(text);
+    }, 800);
+    
+    // Echo 2: more delayed, higher pitch, even quieter
+    setTimeout(() => {
+        speak.setRate(1.2);
+        speak.setPitch(1.2);
+        speak.setVolume(0.5);
+        speak.speak(text);
+    }, 1600);
+    
+    // Echo 3: very delayed, highest pitch, very quiet
+    setTimeout(() => {
+        speak.setRate(1.3);
+        speak.setPitch(1.3);
+        speak.setVolume(0.3);
+        speak.speak(text);
+    }, 2400);
 }
 
 function draw() {
