@@ -102,7 +102,7 @@ function toggleMicrophone() {
 }
 
 function mousePressed() {
-    // Handle image button clicks when using canvas-drawn images
+    // Handle clicks on the microphone image
     if (mouseX >= width - 70 && mouseX <= width - 10 && 
         mouseY >= height - 70 && mouseY <= height - 10) {
         toggleMicrophone();
