@@ -8,7 +8,7 @@ However if you would like to try it out before, follow the steps below
 
 Open up comand prompt and navigate to the directory
 
-run "npm i" to install the badwords.js package
+run "npm i" to install the badwords.js package and misc server packages
 
 Run "npm start" to start the server. 
 
