@@ -11,9 +11,6 @@ let micOnImg;
 let micOffImg;
 let bgImage;
 
-// DEBUG MODE - Set to true to visualize paths and auto-spawn test words
-const DEBUG_MODE = true;
-
 function preload() {
     // Load images
     bgImage = loadImage('assets/background.png');
@@ -99,11 +96,6 @@ function draw() {
     // Draw background - aligned to top-left, scaled to fit height
     drawBackground();
 
-    // DEBUG: Draw path visualization
-    if (DEBUG_MODE) {
-        drawPathVisualization();
-    }
-
     for (let i = echoes.length - 1; i >= 0; i--) {
         let echo = echoes[i];
         echo.update();
@@ -120,17 +112,6 @@ function draw() {
         } else {
             image(micOffImg, width - 70, height - 70, 60, 60);
         }
-    }
-    
-    // DEBUG: Show instructions
-    if (DEBUG_MODE) {
-        fill(255);
-        textAlign(LEFT, TOP);
-        textSize(16);
-        text("DEBUG MODE: Press SPACE to spawn test word", 10, 10);
-        text("Press 'D' to toggle path display", 10, 30);
-        textAlign(CENTER, CENTER);
-        textSize(32);
     }
 }
 
@@ -162,68 +143,6 @@ function getBackgroundBounds() {
     };
 }
 
-// DEBUG: Visualize all paths
-let showPaths = true;
-function drawPathVisualization() {
-    if (!showPaths) return;
-    
-    let bgBounds = getBackgroundBounds();
-    
-    // Draw each path in a different color
-    const pathColors = [
-        [255, 100, 100],  // Red
-        [100, 255, 100],  // Green
-        [100, 100, 255],  // Blue
-        [255, 255, 100]   // Yellow
-    ];
-    
-    for (let pathIndex = 0; pathIndex < PATHS.length; pathIndex++) {
-        let path = PATHS[pathIndex];
-        let col = pathColors[pathIndex % pathColors.length];
-        
-        // Convert to pixel coordinates
-        let pixelPath = path.map(wp => ({
-            x: bgBounds.x + (wp.x * bgBounds.width),
-            y: bgBounds.y + (wp.y * bgBounds.height)
-        }));
-        
-        // Draw lines between waypoints
-        stroke(col[0], col[1], col[2], 150);
-        strokeWeight(3);
-        noFill();
-        beginShape();
-        for (let wp of pixelPath) {
-            vertex(wp.x, wp.y);
-        }
-        endShape();
-        
-        // Draw waypoint circles
-        fill(col[0], col[1], col[2], 200);
-        noStroke();
-        for (let i = 0; i < pixelPath.length; i++) {
-            let wp = pixelPath[i];
-            circle(wp.x, wp.y, 10);
-            
-            // Label waypoints
-            fill(255);
-            textSize(12);
-            textAlign(CENTER, CENTER);
-            text(`${pathIndex + 1}-${i + 1}`, wp.x, wp.y - 15);
-            fill(col[0], col[1], col[2], 200);
-        }
-        
-        // Draw path number at start
-        fill(255);
-        textSize(20);
-        text(`Path ${pathIndex + 1}`, pixelPath[0].x, pixelPath[0].y - 30);
-    }
-    
-    // Reset drawing settings
-    noStroke();
-    textSize(32);
-    textAlign(CENTER, CENTER);
-}
-
 function toggleMicrophone() {
     if (speechActive) {
         // Stop speech recognition
@@ -247,16 +166,6 @@ function mousePressed() {
 function keyPressed() {
     if (keyCode === ENTER) {
         sendEcho();
-    }
-    
-    // DEBUG: Press SPACE to spawn a test word
-    if (DEBUG_MODE && key === ' ') {
-        echoes.push(new Word("TEST"));
-    }
-    
-    // DEBUG: Press 'D' to toggle path visualization
-    if (DEBUG_MODE && (key === 'd' || key === 'D')) {
-        showPaths = !showPaths;
     }
 }
 
