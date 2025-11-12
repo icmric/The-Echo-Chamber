@@ -12,7 +12,8 @@ let micOffImg;
 let bgImage;
 
 function preload() {
-    // Load images
+    // Load up all the images in preload to improve performance
+    // Note that the background image is AI generated using Gemini. Mic images are free assets found online
     bgImage = loadImage('assets/background.png');
     micOnImg = loadImage('assets/mic-on.jpg');
     micOffImg = loadImage('assets/mic-off.jpg');
@@ -21,8 +22,8 @@ function preload() {
 async function setup() {
     createCanvas(windowWidth, windowHeight);
     
-    // Initialize speech recognition
-    speechRec = new p5.SpeechRec('en-US', gotSpeech);
+    // Initialize speech recognition library
+    speechRec = new p5.SpeechRec('en-AU', gotSpeech);
     speechRec.start(true, false);
     speechActive = true;
     speak = new p5.Speech()
@@ -31,17 +32,17 @@ async function setup() {
     // Connect to the server
     socket = io();
     
-    // Listen for 'newEcho' messages from the server
+    // Listen for 'newEcho' messages from the server meaning an echo has been received. add it to the array and speak it
     socket.on('newEcho', (data) => {
         echoes.push(new Word(data.text));
-        speak.setVoice("Microsoft Catherine - English (Australia)");
         applyEchoAndSpeak(data.text);
     });
 
-    // UI Setup
+    // Text input UI setup
     inputField = createInput('');
     inputField.position(width / 2 - 150, height - 50);
-    inputField.size(220);    submitButton = createButton('Echo');
+    inputField.size(220);
+    submitButton = createButton('Echo');
     submitButton.position(inputField.x + inputField.width + 10, height - 50);
     submitButton.mousePressed(sendEcho); 
 
@@ -50,16 +51,18 @@ async function setup() {
     textSize(32);
 }
 
-// Speech recognized event  
+// Handles what happens when speech has been recognized by the mic 
 function gotSpeech() {
+    // Checks if there is anything to say, if there is it trims whitespace and sends it to the server
     if (speechRec.resultValue) {
         let said = speechRec.resultString;
         if (said && said.trim() !== "") {
-            socket.emit('newEcho', { text: said });
+            sendEcho(said);
         }
     }
 }
 
+// Takes in some text and echos it back by replaying the speech multiple times with varying delays, pitches, and volumes
 function applyEchoAndSpeak(text) {
     // Original speech at normal rate and pitch
     speak.setRate(1.0);
@@ -93,9 +96,10 @@ function applyEchoAndSpeak(text) {
 }
 
 function draw() {
-    // Draw background - aligned to top-left, scaled to fit height
+    // Draw the background image
     drawBackground();
 
+    // Manage all the echoes on screen (update their position and opacity), removing when appropriate 
     for (let i = echoes.length - 1; i >= 0; i--) {
         let echo = echoes[i];
         echo.update();
@@ -105,7 +109,7 @@ function draw() {
         }
     }
 
-    // Draw microphone button image in bottom right
+    // Draw the mic image in the bottom right. Draw the correct image depending on mic state
     if (micOnImg && micOffImg) {
         if (speechActive) {
             image(micOnImg, width - 70, height - 70, 60, 60);
@@ -115,6 +119,7 @@ function draw() {
     }
 }
 
+// Scale, position, and draw the background image
 function drawBackground() {
     if (!bgImage) return;
     
@@ -123,18 +128,20 @@ function drawBackground() {
     let drawWidth = bgImage.width * scale;
     let drawHeight = height;
     
+    // Draw the image
     image(bgImage, 0, 0, drawWidth, drawHeight);
 }
 
-// Get the bounding box of the background image
+// Get the bounding box of the background image.
+// Used to ensure the path is consistent across different screen sizes
 function getBackgroundBounds() {
     if (!bgImage) return { x: 0, y: 0, width: width, height: height };
     
-    // Scale to fit canvas height, align to top-left
     let scale = height / bgImage.height;
     let drawWidth = bgImage.width * scale;
     let drawHeight = height;
     
+    // x and y are 0 since its always aligned to top-left
     return {
         x: 0,
         y: 0,
@@ -143,6 +150,7 @@ function getBackgroundBounds() {
     };
 }
 
+// Toggle speech recognition on and off
 function toggleMicrophone() {
     if (speechActive) {
         // Stop speech recognition
@@ -156,7 +164,7 @@ function toggleMicrophone() {
 }
 
 function mousePressed() {
-    // Handle clicks on the microphone image
+    // Handle clicks on the microphone image. Dodgy solution but work reliably
     if (mouseX >= width - 70 && mouseX <= width - 10 && 
         mouseY >= height - 70 && mouseY <= height - 10) {
         toggleMicrophone();
@@ -164,23 +172,26 @@ function mousePressed() {
 }
 
 function keyPressed() {
+    // Adds a short cut to send the echo so the button doesnt have to be pressed
     if (keyCode === ENTER) {
         sendEcho();
     }
 }
 
-function sendEcho() {
-    const text = inputField.value();
+// Validate the echo and send it to the server
+function sendEcho(words) {
+    const text = inputField.value() || words;
     if (text !== "") {
         socket.emit('newEcho', { text: text });
+        // Reset the text field after sending the echo
         inputField.value('');    }
 }
 
 // Paths the words will take in the mineshaft. 
-// x and y are ratios of the background image (between 0 and 1) 
+// x and y are ratios of the background image (between 0 and 1)
+// Word will begin at xy 0, travel in a straight line to xy 1, then xy 2, etc.
 const PATHS = [
     // Top mineshaft path
-    
     [
         { x: 0.2, y: 0.16 },
         { x: 0.4, y: 0.16 },
@@ -238,13 +249,14 @@ const PATHS = [
 
 ];
 
+// Class to manage each word echo. Probably a bit over kill but made it easier to manage word states and the info needed for it.
 class Word {
     constructor(text) {
+        // The actual text to be displayed
         this.text = text;
         
-        // Randomly select one of the paths
-        this.pathIndex = floor(random(PATHS.length));
-        this.path = PATHS[this.pathIndex];
+        // Select a path at random
+        this.path = PATHS[floor(random(PATHS.length))];
         
         // Convert proportional coordinates to actual pixel positions
         // based on background image bounds. Makes it so that the paths are consistent across screens
@@ -254,10 +266,10 @@ class Word {
             y: bgBounds.y + (wp.y * bgBounds.height)
         }));
         
-        // Calculate total path length
+        // Total length the word will travel. Calculated on the fly since this will differ based on resolution
         this.totalPathLength = this.calculatePathLength();
         
-        // Track distance traveled along the path
+        // Track distance traveled along the path (for opacity)
         this.distanceTraveled = 0;
         
         // Start at the first waypoint
@@ -267,7 +279,8 @@ class Word {
             this.waypoints[0].y
         );
         
-        // Movement speed (pixels per frame)
+        // Movement speed (pixels per frame). Higher value means faster travel
+        // Basing speed on pixels isnt ideal as it travels slower on higher res screens, but compensating for that feels unnesesary
         this.speed = 1.5;
         
         // Proportion of the path to fade in and out (5%)
@@ -275,6 +288,7 @@ class Word {
         this.fadeOutDistance = 0.05;
     }
     
+    // Calculate the length of the path by itterating through each point in the line and calculating the hypotenuse of it
     calculatePathLength() {
         let totalLength = 0;
         for (let i = 0; i < this.waypoints.length - 1; i++) {
@@ -287,14 +301,14 @@ class Word {
         return totalLength;
     }
 
+    // Handles all the bits of the word object which will update regularly after creation
     update() {
-        // Check if we've reached the end of the path
+        // If the word is at the final point in the path (the end), return and do nothing
         if (this.currentWaypointIndex >= this.waypoints.length - 1) {
-            // Finished the path
             return;
         }
         
-        // Get current target waypoint
+        // Get current target waypoint (next point in the line) and figure out how to get there
         let target = this.waypoints[this.currentWaypointIndex + 1];
         let targetVec = createVector(target.x, target.y);
         
@@ -303,12 +317,14 @@ class Word {
         let distance = direction.mag();
         
         // If we're close enough to the target, move to next waypoint
+        // While this check seems a bit dodgy (and to be fair it is), it actually compensates for slight weirdness in calculations and everything
+        // And as it is only jumping up to 1.5 pixels, this is how far it would move in a typical frame so there isnt any visible jumping
         if (distance < this.speed) {
             this.distanceTraveled += distance;
             this.pos.set(target.x, target.y);
             this.currentWaypointIndex++;
         } else {
-            // Move towards the target
+            // Move towards the target position
             direction.normalize();
             direction.mult(this.speed);
             this.pos.add(direction);
@@ -316,6 +332,8 @@ class Word {
         }
     }
     
+    // Figures out what the opacity of the word should be
+    // Most of the time it is full (255), however at the start and end it wont be
     calculateOpacity() {
         // Calculate progress along the path (0 to 1)
         let progress = this.distanceTraveled / this.totalPathLength;
@@ -331,9 +349,11 @@ class Word {
             opacity = map(progress, 1 - this.fadeOutDistance, 1, 255, 0);
         }
         
+        // Return the opacity the word should be (contrained between 0 and 255 for saftey). By default it will be 255
         return constrain(opacity, 0, 255);
     }
 
+    // Draw the word on the screen at its current position, adding the glow effect (ai helped figure out how to do this)
     display() {
         let opacity = this.calculateOpacity();
         fill(100, 150, 255, opacity);
@@ -344,8 +364,8 @@ class Word {
         drawingContext.shadowColor = 'rgba(0,0,0,0)';
     }
 
+    // Simple check to see if the word has finished the path or not. Finished once its at the last point and fully faded out
     isFinished() {
-        // Finished when we've reached the last waypoint and faded out
         return this.currentWaypointIndex >= this.waypoints.length - 1 && 
                this.calculateOpacity() <= 0;
     }
@@ -362,6 +382,8 @@ class Word {
     }
 }
 
+// update everything to work when the window gets resized (i.e. browser put into or out of full screen generally)
+// This was also done with help from AI since it felt out of scope of the rest of the project.
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
     if (inputField && submitButton) {

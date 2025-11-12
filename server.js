@@ -1,4 +1,6 @@
-// This server will relay 'echo' messages to all connected clients.
+// All of the server management was done with heavy help from GenAI since its beyond scope of this subject. Implementation of bad-words was done entiryley by me though.
+// Generally though, it sets up a HTTP server on port 3000 and opens a websocket connection with each client
+
 import { Filter } from 'bad-words';
 import express from 'express';
 import http from 'http';
@@ -14,38 +16,32 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = 3000;
 
+// Create the bad words filter
 const filter = new Filter();
+// Add a custom word to the filter so the filter can be demonstrated (although this does come pre filled so swear words are also filtered)
 filter.addWords("badword");
 
-// This line tells Express to make all files in the current folder
-// available to the browser.
 app.use(express.static(__dirname));
 
-// This function runs whenever a new user opens the webpage.
 io.on('connection', (socket) => {
-  console.log(`A user connected with ID: ${socket.id}`);
-  
-  // Listen for a 'newEcho' message from any client
   socket.on('newEcho', (data) => {
+    // When a new echo is received, run it through the filter. If no changes are made it is clean and can be sent out
+    // If changes are made, something has been filtered out so it gets ignored and a note is made in the server console.
     const cleanText = filter.clean(data.text);
     if (cleanText === data.text) {
       // When a message is received, log it to the server console
-    console.log(`Received echo: "${data.text}"`);
+      console.log(`Received echo: "${data.text}"`);
     
-
-    // Broadcast the received data to EVERYONE connected
-    io.emit('newEcho', data);
+      // send the echo to everyone connected to the server
+      io.emit('newEcho', data);
     } else {
+      // Log that an inappropriate message was filtered out
       console.log(`Filtered inappropriate message from user ${socket.id}`);
     }
   });
-
-  // This function runs when that user closes the page.
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
 });
 
+// When the server has started, log this and the URL to access it
 server.listen(PORT, () => {
   console.log(`Server is running!`);
   console.log(`Open your browser to http://localhost:${PORT}`);
